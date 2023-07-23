@@ -1,4 +1,3 @@
-import { Component } from 'react';
 import { Searchbar } from '../Searchbar/Searchbar';
 import { getImages } from 'service/image-service';
 import { ImageGallery } from '../ImageGallery/ImageGallery';
@@ -7,125 +6,110 @@ import { Text } from '../Text/Text.styled';
 import { BallTriangle } from 'react-loader-spinner';
 import { AppDiv } from './App.styled';
 import { Modal } from 'components/Modal/Modal';
+import { useEffect, useState } from 'react';
 
-export class App extends Component {
-  state = {
-    query: '',
-    page: 1,
-    imagesList: [],
-    modalParams: { largeImageURL: '', tags: '' },
-    isLoading: false,
-    isEmpty: false,
-    isVisibleBtn: false,
-    isShowModal: false,
-  };
+export const App = () => {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [imagesList, setImagesList] = useState([]);
+  const [modalParams, setModalParams] = useState({
+    largeImageURL: '',
+    tags: '',
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
+  const [isVisibleBtn, setIsVisibleBtn] = useState(false);
+  const [isShowModal, setIsShowModal] = useState(false);
 
-  componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
-    if (prevState.query !== query || prevState.page !== page) {
-      this.getImagesByQuery(query, page);
-    }
-  }
+  useEffect(() => {
+    const getImagesByQuery = async (query, page) => {
+      try {
+        setIsLoading(true);
+        const { totalHits, hits } = await getImages(query, page);
 
-  getImagesByQuery = async (query, page) => {
-    try {
-      this.setState({ isLoading: true });
-      const { totalHits, hits } = await getImages(query, page);
+        if (hits.length === 0) {
+          setIsEmpty(true);
+          return;
+        }
 
-      if (hits.length === 0) {
-        this.setState({ isEmpty: true });
-        return;
+        const imgList = hits.map(hit => ({
+          id: hit.id,
+          webformatURL: hit.webformatURL,
+          largeImageURL: hit.largeImageURL,
+          tags: hit.tags,
+        }));
+
+        setImagesList(prev => [...prev, ...imgList]);
+        setIsVisibleBtn(page < Math.ceil(totalHits / 12));
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const imgList = hits.map(hit => ({
-        id: hit.id,
-        webformatURL: hit.webformatURL,
-        largeImageURL: hit.largeImageURL,
-        tags: hit.tags,
-      }));
-
-      this.setState(prevState => ({
-        imagesList: [...prevState.imagesList, ...imgList],
-        isVisibleBtn: page < Math.ceil(totalHits / 12),
-      }));
-    } catch (error) {
-      console.log(error);
-    } finally {
-      this.setState({ isLoading: false });
+    if (query) {
+      getImagesByQuery(query, page);
     }
-  };
+  }, [query, page]);
 
-  onSubmit = query => {
+  const onSubmit = query => {
     // обнуление параметров
-    this.setState({
-      query,
-      page: 1,
-      imagesList: [],
-      modalParams: { largeImageURL: '', tags: '' },
-      isLoading: false,
-      isEmpty: false,
-      isVisibleBtn: false,
-      isShowModal: false,
-    });
+    setQuery(query);
+    setPage(1);
+    setImagesList([]);
+    setModalParams({ largeImageURL: '', tags: '' });
+    setIsLoading(false);
+    setIsEmpty(false);
+    setIsVisibleBtn(false);
+    setIsShowModal(false);
   };
 
-  onLoadMore = () => {
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+  const onLoadMore = () => {
+    setPage(page + 1);
   };
 
-  showModal = (largeImageURL, tags) => {
-    this.setState({
-      isShowModal: true,
-      modalParams: { largeImageURL, tags },
-    });
+  const showModal = (largeImageURL, tags) => {
+    setIsShowModal(true);
+    setModalParams({ largeImageURL, tags });
   };
 
-  closeModal = () => {
-    this.setState({ isShowModal: false });
+  const closeModal = () => {
+    setIsShowModal(false);
   };
 
-  render() {
-    const {
-      imagesList,
-      isLoading,
-      isEmpty,
-      isVisibleBtn,
-      isShowModal,
-      modalParams,
-    } = this.state;
-    return (
-      <AppDiv>
-        <Searchbar onSubmit={this.onSubmit}></Searchbar>
-        <ImageGallery imagesList={imagesList} showModal={this.showModal} />
-        {isLoading && (
-          <>
-            <BallTriangle
-              height={100}
-              width={100}
-              radius={5}
-              color="#4d5ea9"
-              ariaLabel="ball-triangle-loading"
-              wrapperClass={{}}
-              wrapperStyle=""
-              visible={true}
-            />
-            <Text>Loading ... </Text>
-          </>
-        )}
-        {isEmpty && <Text>Sorry. There are no images ... 😭</Text>}
-        {isVisibleBtn && (
-          <Button type="button" onClick={this.onLoadMore}>
-            Load more
-          </Button>
-        )}
-        {isShowModal && (
-          <Modal
-            largeImageURL={modalParams.largeImageURL}
-            tags={modalParams.tags}
-            closeModal={this.closeModal}
-          ></Modal>
-        )}
-      </AppDiv>
-    );
-  }
-}
+  return (
+    <AppDiv>
+      <Searchbar onSubmit={onSubmit}></Searchbar>
+      <ImageGallery imagesList={imagesList} showModal={showModal} />
+      {isLoading && (
+        <>
+          <BallTriangle
+            height={100}
+            width={100}
+            radius={5}
+            color="#4d5ea9"
+            ariaLabel="ball-triangle-loading"
+            wrapperClass={{}}
+            wrapperStyle=""
+            visible={true}
+          />
+          <Text>Loading ... </Text>
+        </>
+      )}
+      {isEmpty && <Text>Sorry. There are no images ... 😭</Text>}
+      {isVisibleBtn && (
+        <Button type="button" onClick={onLoadMore}>
+          Load more
+        </Button>
+      )}
+      {isShowModal && (
+        <Modal
+          largeImageURL={modalParams.largeImageURL}
+          tags={modalParams.tags}
+          closeModal={closeModal}
+        ></Modal>
+      )}
+    </AppDiv>
+  );
+};
