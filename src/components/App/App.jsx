@@ -22,6 +22,10 @@ export const App = () => {
   const [isShowModal, setIsShowModal] = useState(false);
 
   useEffect(() => {
+    if (query && query.trim() === '') {
+      alert('Enter your request...');
+      return;
+    }
     const getImagesByQuery = async (query, page) => {
       try {
         setIsLoading(true);
